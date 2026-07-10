@@ -1,6 +1,6 @@
 [package]
 name = "mimey"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 readme = "README.md"
 authors = ["ransomware <4thel00z@gmail.com>"]
