@@ -49,7 +49,7 @@ checksum = "8874ffff32a3f8ef9d80e27834fb6ae005bb22c4807f088bc4ce9c649361ec42"
 
 [[package]]
 name = "mimey"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "mimetype-detector",
  "pyo3",
