@@ -21,6 +21,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and install
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist -i python
+          sccache: true
+          # Build on the host, not in a manylinux container, so `-i python`
+          # is the interpreter setup-python just installed.
+          manylinux: off
+      - name: Run tests
+        run: |
+          pip install pytest
+          pip install --no-index --find-links dist mimey
+          pytest tests/ -v
+
   linux:
     if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ${{ matrix.platform.runner }}
