@@ -79,13 +79,34 @@ Per call, macOS arm64 / CPython 3.12, min-of-7 over 200k calls:
 
 | | ns/call |
 |---|--:|
-| `detect_mime`, no registrations | **78** |
-| one registered signature, no match | 83 |
+| `detect_mime`, no registrations | **83** |
+| one registered signature, no match | 89 |
 | one registered signature, **matches** | **37** |
-| one registered callable | 120 |
+| one registered callable | 128 |
 
 Cost is flat in payload size — the detector sniffs a prefix, so the per-call
-number is dominated by the Python↔Rust boundary, not by your data.
+number is dominated by the Python↔Rust boundary, not by your data. An empty
+registry costs a single relaxed atomic load, so the feature is free when unused.
+
+### Free-threading
+
+The module declares `gil_used = false`, so importing it on a free-threaded
+build does not silently switch the GIL back on. Detection holds no shared
+state, so it scales:
+
+| threads | ns/call | speedup |
+|--:|--:|--:|
+| 1 | 75.0 | 1.0× |
+| 2 | 38.9 | 1.9× |
+| 4 | 19.8 | 3.8× |
+| 8 | 14.6 | 5.1× |
+
+CPython 3.14.6t, same machine, 400k calls per thread.
+
+## Typing
+
+The package ships `py.typed` and a stub file, so `mypy` and `pyright` see real
+signatures rather than `Any`.
 
 ## License
 

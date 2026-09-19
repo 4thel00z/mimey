@@ -23,3 +23,5 @@ keywords = ["MIME", "file type detection", "Rust", "Python"]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "mimey.mimey"
