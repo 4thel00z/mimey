@@ -1,3 +1,5 @@
+import sysconfig
+import threading
 from typing import Any
 
 import pytest
@@ -130,3 +132,35 @@ def test_clear_registrations_restores_builtin_behaviour() -> None:
     mimey.clear_registrations()
     assert mimey.detect_mime(PNG) == "image/png"
     assert mimey.registered() == []
+
+
+def test_module_does_not_reenable_the_gil() -> None:
+    import sys
+
+    if not sysconfig.get_config_var("Py_GIL_DISABLED"):
+        pytest.skip("not a free-threaded build")
+    assert sys._is_gil_enabled() is False
+
+
+def test_concurrent_detection_and_registration() -> None:
+    mimey.register("application/x-shared", ".shared", magic=b"SHARED")
+    errors: list[BaseException] = []
+    barrier = threading.Barrier(8)
+
+    def hammer(n: int) -> None:
+        try:
+            barrier.wait()
+            for i in range(2000):
+                assert mimey.detect_mime(PNG) == "image/png"
+                assert mimey.detect_mime(b"SHARED" + PNG) == "application/x-shared"
+                if i % 500 == 0:
+                    mimey.register(f"application/x-t{n}-{i}", ".t", magic=b"ZZZZZZZZ")
+        except BaseException as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=hammer, args=(n,)) for n in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []

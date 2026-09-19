@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, RwLock};
 
@@ -64,24 +63,6 @@ static CUSTOM: LazyLock<RwLock<Arc<Vec<CustomType>>>> =
 /// Lets the common case skip the lock entirely.
 static HAS_CUSTOM: AtomicBool = AtomicBool::new(false);
 
-/// Built-in mime and extension strings, keyed by the address of the static str
-/// the detector returns, so a repeat detection increfs instead of allocating.
-static STRINGS: LazyLock<RwLock<HashMap<usize, Py<PyString>>>> =
-    LazyLock::new(|| RwLock::new(HashMap::new()));
-
-fn cached<'py>(py: Python<'py>, text: &'static str) -> Bound<'py, PyString> {
-    let key = text.as_ptr() as usize;
-    if let Some(hit) = STRINGS.read().unwrap().get(&key) {
-        return hit.bind(py).clone();
-    }
-    let value = PyString::new(py, text);
-    STRINGS
-        .write()
-        .unwrap()
-        .insert(key, value.clone().unbind());
-    value
-}
-
 fn custom_hit<'py>(
     py: Python<'py>,
     data: &[u8],
@@ -109,7 +90,7 @@ fn detect_mime<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyStrin
     if let Some(hit) = custom_hit(py, data, |entry| &entry.mime)? {
         return Ok(hit);
     }
-    Ok(cached(py, internal_detect(data).mime()))
+    Ok(PyString::new(py, internal_detect(data).mime()))
 }
 
 /// Detects the extension of a byte array.
@@ -118,7 +99,7 @@ fn detect_type<'py>(py: Python<'py>, data: &[u8]) -> PyResult<Bound<'py, PyStrin
     if let Some(hit) = custom_hit(py, data, |entry| &entry.extension)? {
         return Ok(hit);
     }
-    Ok(cached(py, internal_detect(data).extension()))
+    Ok(PyString::new(py, internal_detect(data).extension()))
 }
 
 fn build_matcher(
@@ -190,7 +171,7 @@ fn clear_registrations() {
 }
 
 /// A Python module implemented in Rust.
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn mimey(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(detect_mime, m)?)?;
     m.add_function(wrap_pyfunction!(detect_type, m)?)?;

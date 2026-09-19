@@ -24,11 +24,16 @@ jobs:
   test:
     if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 3.14t guards the gil_used = false declaration: without it, importing
+        # the module switches the GIL back on for the whole process.
+        python-version: ['3.12', '3.14t']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
       - name: Build and install
         uses: PyO3/maturin-action@v1
         with:
